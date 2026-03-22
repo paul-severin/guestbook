@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neuer Eintrag – Gästebuch</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Lato:wght@300;400&family=Caveat:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="page">
+    <a href="index.html" class="nav-back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Zurück
+    </a>
+
+    <div class="header">
+      <h1 class="header-title">Gästebuch</h1>
+      <div class="header-divider"></div>
+    </div>
+
+    <form id="guestForm" novalidate>
+      <!-- Honeypot -->
+      <input id="hp" name="hp" type="text" tabindex="-1" aria-hidden="true"
+             style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" autocomplete="off" />
+
+      <!-- Section 1: Who -->
+      <div class="card">
+        <h2 class="section-title">Wer bist du?</h2>
+
+        <label class="field-label">Mein Name</label>
+        <input type="text" name="name" placeholder="Vor- und Nachname" autocomplete="name" required />
+
+        <label class="field-label" style="margin-top:22px;">Woher kennen wir uns?</label>
+        <div class="check-group">
+          <label class="check-item">
+            <input type="radio" name="verbindung" value="Freund/in" />
+            <span class="check-box"></span>
+            <span>Freund/in</span>
+          </label>
+          <label class="check-item">
+            <input type="radio" name="verbindung" value="Familie" />
+            <span class="check-box"></span>
+            <span>Familie</span>
+          </label>
+        </div>
+        <div class="check-group" style="margin-top:10px;">
+          <label class="check-item">
+            <input type="radio" name="verbindung" value="andere" id="andereCheck" />
+            <span class="check-box"></span>
+            <span>Andere:</span>
+          </label>
+          <input type="text" name="verbindung_andere" id="andereText" placeholder="Und zwar…"
+                 style="font-style:italic; flex:1;" disabled />
+        </div>
+      </div>
+
+      <!-- Section 2: Message -->
+      <div class="card">
+        <h2 class="section-title">Persönliche Botschaft</h2>
+        <textarea name="botschaft" rows="7"></textarea>
+      </div>
+
+      <!-- Section 3: Photos -->
+      <div class="card">
+        <h2 class="section-title">Fotos</h2>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="photoInput" accept="image/*" multiple />
+          <span style="display:block; margin-bottom:8px; color:var(--green);">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7a9e7e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          </span>
+          <p class="upload-text">Foto hinzufügen</p>
+        </div>
+        <div class="photo-previews" id="photoPreviews"></div>
+      </div>
+
+      <!-- Divider -->
+      <div class="leaf-divider">
+        <svg viewBox="0 0 120 30" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#4a6741" stroke-width="0.8">
+            <line x1="0" y1="15" x2="45" y2="15"/>
+            <line x1="75" y1="15" x2="120" y2="15"/>
+            <ellipse cx="60" cy="15" rx="10" ry="5"/>
+            <ellipse cx="48" cy="12" rx="7" ry="3.5" transform="rotate(-20 48 12)"/>
+            <ellipse cx="72" cy="12" rx="7" ry="3.5" transform="rotate(20 72 12)"/>
+          </g>
+          <circle cx="60" cy="15" r="1.5" fill="#d4af37" opacity="0.8"/>
+        </svg>
+      </div>
+
+      <div class="submit-wrap">
+        <button type="submit" class="btn-submit">Eintrag hinterlassen</button>
+      </div>
+    </form>
+
+    <div class="success-screen" id="successScreen">
+      <div class="success-icon">🌿</div>
+      <h2 class="success-title">Danke schön!</h2>
+      <p class="success-text">Dein Eintrag ist im Gästebuch<br>verewigt.</p>
+    </div>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN = 'YOUR_FINE_GRAINED_TOKEN'"></script>
+  <script>
+    const storage = new GitHubStorage({
+      owner: 'paul-severin',
+      repo:  'guestbook-data',
+      token: GUESTBOOK_TOKEN,
+    });
+
+    // Andere toggle
+    const andereCheck = document.getElementById('andereCheck');
+    const andereText  = document.getElementById('andereText');
+    document.querySelectorAll('input[name="verbindung"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        andereText.disabled = !andereCheck.checked;
+        if (!andereCheck.checked) andereText.value = '';
+        if (andereCheck.checked) andereText.focus();
+      });
+    });
+
+    // Photo upload
+    const photoInput   = document.getElementById('photoInput');
+    const photoPreviews = document.getElementById('photoPreviews');
+    const uploadArea   = document.getElementById('uploadArea');
+    let uploadedFiles  = [];
+
+    photoInput.addEventListener('change', handleFiles);
+
+    function handleFiles(e) {
+      Array.from(e.target.files || []).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        uploadedFiles.push(file);
+        const reader = new FileReader();
+        reader.onload = ev => addPreview(ev.target.result, uploadedFiles.length - 1);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function addPreview(src, idx) {
+      const wrap = document.createElement('div');
+      wrap.className  = 'photo-preview-item';
+      wrap.dataset.idx = idx;
+      const img = document.createElement('img');
+      img.src = src;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '×';
+      btn.addEventListener('click', () => {
+        uploadedFiles.splice(idx, 1);
+        wrap.remove();
+        document.querySelectorAll('.photo-preview-item').forEach((el, i) => el.dataset.idx = i);
+      });
+      wrap.appendChild(img);
+      wrap.appendChild(btn);
+      photoPreviews.appendChild(wrap);
+    }
+
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      handleFiles({ target: { files: e.dataTransfer.files } });
+    });
+
+    // Submit
+    document.getElementById('guestForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (document.getElementById('hp').value) return;
+
+      const btn = e.target.querySelector('.btn-submit');
+      btn.disabled    = true;
+      btn.textContent = 'Wird gespeichert…';
+
+      const data       = new FormData(e.target);
+      const verbindung = data.get('verbindung') ?? '';
+      const fields     = {
+        name:              data.get('name')?.trim() ?? '',
+        verbindung:        verbindung === 'andere' ? '' : verbindung,
+        verbindung_andere: data.get('verbindung_andere')?.trim() ?? '',
+        botschaft:         data.get('botschaft')?.trim() ?? '',
+      };
+
+      try {
+        const id = await storage.saveEntry(fields, uploadedFiles);
+        window.location.href = `entry.html?id=${id}`;
+      } catch (err) {
+        console.error(err);
+        btn.disabled    = false;
+        btn.textContent = 'Eintrag hinterlassen';
+        alert('Speichern fehlgeschlagen. Bitte nochmal versuchen.');
+      }
+    });
+  </script>
+</body>
+</html>

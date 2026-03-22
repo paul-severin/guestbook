@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gästebuch</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Lato:wght@300;400&family=Caveat:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── New entry button ── */
+    .header-action {
+      margin-top: 20px;
+    }
+    .btn-new {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Dancing Script', cursive;
+      font-size: 22px;
+      color: var(--green-dark);
+      text-decoration: none;
+      border-bottom: 1px solid var(--gold-light);
+      padding-bottom: 2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-new:hover {
+      color: var(--green);
+      border-color: var(--green);
+    }
+    .btn-new .btn-plus {
+      font-family: 'Dancing Script', cursive;
+      font-size: 26px;
+      line-height: 1;
+      margin-top: -2px;
+    }
+
+    /* ── Entry cards ── */
+    .entry-list { padding: 8px 0; }
+
+    .entry-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin: 0 16px 16px;
+      background: rgba(255,255,255,0.55);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .entry-card::before {
+      content: '';
+      position: absolute;
+      top: 5px; left: 5px; right: -5px; bottom: -5px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      z-index: -1;
+    }
+    .entry-card:hover { background: rgba(255,255,255,0.8); }
+
+    /* Thumbnail */
+    .entry-thumb {
+      width: 72px;
+      height: 72px;
+      flex-shrink: 0;
+      border-radius: 3px;
+      overflow: hidden;
+      background: var(--warm);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .entry-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .entry-thumb-placeholder {
+      opacity: 0.3;
+    }
+
+    /* Info */
+    .entry-info { flex: 1; min-width: 0; }
+
+    .entry-name-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+    .entry-name {
+      font-family: 'Dancing Script', cursive;
+      font-size: 21px;
+      color: var(--green-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .entry-date {
+      font-size: 11px;
+      color: var(--text-light);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .entry-verbindung {
+      font-size: 11px;
+      color: var(--text-light);
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .entry-snippet {
+      font-family: 'Caveat', cursive;
+      font-size: 16px;
+      color: var(--text);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .entry-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
+    /* ── States ── */
+    .state-loading,
+    .state-empty,
+    .state-error {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-light);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .state-loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <div class="header">
+      <h1 class="header-title">Gästebuch</h1>
+      <div class="header-divider"></div>
+      <div class="header-action">
+        <a href="form.html" class="btn-new">
+          <span class="btn-plus">+</span>
+          Neuer Eintrag
+        </a>
+      </div>
+    </div>
+
+    <div id="entryList">
+      <div class="state-loading">
+        <div class="state-loading-spinner"></div>
+        Einträge werden geladen…
+      </div>
+    </div>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN = 'YOUR_FINE_GRAINED_TOKEN'"></script>
+  <script>
+    const storage = new GitHubStorage({
+      owner: 'paul-severin',
+      repo:  'guestbook-data',
+      token: GUESTBOOK_TOKEN,
+    });
+
+    const container = document.getElementById('entryList');
+
+    async function load() {
+      try {
+        const index   = await storage.listEntries();
+        const entries = await Promise.all(index.map(({ id }) => storage.getEntry(id)));
+        entries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        render(entries);
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="state-error">Einträge konnten nicht geladen werden.</div>';
+      }
+    }
+
+    function render(entries) {
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="state-empty">Noch keine Einträge.</div>';
+        return;
+      }
+      container.innerHTML = '';
+      const list = document.createElement('div');
+      list.className = 'entry-list';
+      entries.forEach(e => list.appendChild(makeCard(e)));
+      container.appendChild(list);
+    }
+
+    function makeCard(entry) {
+      const card = document.createElement('a');
+      card.href      = `entry.html?id=${entry.id}`;
+      card.className = 'entry-card';
+
+      // Thumbnail
+      const thumb = document.createElement('div');
+      thumb.className = 'entry-thumb';
+      if (entry.imagePaths?.length > 0) {
+        const img = document.createElement('img');
+        img.alt = '';
+        storage.resolveImageUrl(entry.imagePaths[0]).then(url => { img.src = url; });
+        thumb.appendChild(img);
+      } else {
+        thumb.innerHTML = `<svg class="entry-thumb-placeholder" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4a6741" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>`;
+      }
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'entry-info';
+
+      const nameRow = document.createElement('div');
+      nameRow.className = 'entry-name-row';
+      nameRow.innerHTML = `<span class="entry-name">${esc(entry.name)}</span>
+                           <span class="entry-date">${formatDate(entry.createdAt)}</span>`;
+
+      const verbindung = [
+        ...(entry.verbindung || []).filter(v => v !== 'andere'),
+        entry.verbindung_andere,
+      ].filter(Boolean).join(' · ');
+
+      const verbDiv = document.createElement('div');
+      verbDiv.className = 'entry-verbindung';
+      verbDiv.textContent = verbindung;
+
+      info.appendChild(nameRow);
+      info.appendChild(verbDiv);
+
+      if (entry.botschaft) {
+        const snippet = document.createElement('p');
+        snippet.className = 'entry-snippet';
+        snippet.textContent = entry.botschaft;
+        info.appendChild(snippet);
+      }
+
+
+      card.appendChild(thumb);
+      card.appendChild(info);
+      return card;
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long', timeZone: 'Europe/Berlin' });
+    }
+
+    function esc(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eintrag – Gästebuch</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Lato:wght@300;400&family=Caveat:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Read-only field values ── */
+    .field-value {
+      padding: 6px 2px 8px;
+      font-size: 15px;
+      color: var(--text);
+      border-bottom: 1px solid var(--line);
+      min-height: 36px;
+    }
+
+    /* ── Verbindung badges ── */
+    .badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .badge {
+      font-size: 12px;
+      color: var(--green-dark);
+      border: 1px solid var(--green);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-weight: 400;
+    }
+
+    /* ── Botschaft (read-only textarea look) ── */
+    .botschaft-text {
+      font-family: 'Caveat', cursive;
+      line-height: 1.9;
+      font-size: 18px;
+      color: var(--text);
+      white-space: pre-wrap;
+      background-image: repeating-linear-gradient(
+        transparent,
+        transparent calc(1.9em - 1px),
+        var(--line) calc(1.9em - 1px),
+        var(--line) 1.9em
+      );
+      background-size: 100% 1.9em;
+      padding: 0 2px;
+      min-height: 100px;
+    }
+
+    /* ── Photo gallery ── */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .gallery-item {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      overflow: hidden;
+      background: var(--warm);
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity 0.2s;
+    }
+    .gallery-item.loading img { opacity: 0; }
+
+    /* ── Lightbox ── */
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 95vw;
+      max-height: 88vh;
+      object-fit: contain;
+      border-radius: 2px;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px; right: 20px;
+      color: #fff;
+      font-size: 28px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      line-height: 1;
+      padding: 4px;
+    }
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      padding: 12px 10px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .lightbox-nav.prev { left: 8px; }
+    .lightbox-nav.next { right: 8px; }
+
+    /* ── Entry header ── */
+    .entry-header {
+      text-align: center;
+      padding: 0 24px 28px;
+    }
+    .entry-name-large {
+      font-family: 'Dancing Script', cursive;
+      font-size: 38px;
+      color: var(--green-dark);
+      line-height: 1.1;
+    }
+    .entry-meta {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 6px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Loading / error */
+    .state-loading, .state-error {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text-light);
+      font-size: 14px;
+    }
+    .state-loading-spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="page" id="page">
+    <a href="index.html" class="nav-back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Zurück
+    </a>
+
+    <div id="content">
+      <div class="state-loading">
+        <div class="state-loading-spinner"></div>
+        Eintrag wird geladen…
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+    <button class="lightbox-close" id="lbClose">×</button>
+    <button class="lightbox-nav prev" id="lbPrev">‹</button>
+    <img id="lbImg" src="" alt="" />
+    <button class="lightbox-nav next" id="lbNext">›</button>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN = 'YOUR_FINE_GRAINED_TOKEN'"></script>
+  <script>
+    const storage = new GitHubStorage({
+      owner: 'paul-severin',
+      repo:  'guestbook-data',
+      token: GUESTBOOK_TOKEN,
+    });
+
+    const content = document.getElementById('content');
+
+    // ── Load entry ─────────────────────────────────────────────────────────
+    const id = new URLSearchParams(location.search).get('id');
+
+    async function load() {
+      if (!id) { showError('Kein Eintrag angegeben.'); return; }
+      try {
+        const entry = await storage.getEntry(id);
+        render(entry);
+      } catch (err) {
+        console.error(err);
+        showError('Eintrag konnte nicht geladen werden.');
+      }
+    }
+
+    function showError(msg) {
+      content.innerHTML = `<div class="state-error">${msg}</div>`;
+    }
+
+    function render(entry) {
+      content.innerHTML = '';
+
+      // Name + date header
+      const header = document.createElement('div');
+      header.className = 'entry-header';
+      header.innerHTML = `
+        <p class="entry-meta">${formatDate(entry.createdAt)}</p>
+        <h1 class="entry-name-large">${esc(entry.name)}</h1>
+      `;
+      content.appendChild(header);
+
+      // Verbindung
+      const verbindung = [
+        ...(entry.verbindung || []).filter(v => v !== 'andere'),
+        entry.verbindung_andere,
+      ].filter(Boolean);
+
+      if (verbindung.length > 0) {
+        const card = makeCard();
+        card.innerHTML = `<div class="badge-list">${verbindung.map(v => `<span class="badge">${esc(v)}</span>`).join('')}</div>`;
+        content.appendChild(card);
+      }
+
+      // Botschaft
+      if (entry.botschaft) {
+        const card = makeCard();
+        card.innerHTML = `<h2 class="section-title">Persönliche Botschaft</h2>
+                          <div class="botschaft-text">${esc(entry.botschaft)}</div>`;
+        content.appendChild(card);
+      }
+
+      // Photos
+      if (entry.imagePaths?.length > 0) {
+        const card = makeCard();
+        card.innerHTML = `<h2 class="section-title">Fotos</h2>`;
+        const gallery = buildGallery(entry.imagePaths);
+        card.appendChild(gallery);
+        content.appendChild(card);
+      }
+    }
+
+    function makeCard() {
+      const card = document.createElement('div');
+      card.className = 'card';
+      return card;
+    }
+
+    // ── Gallery + lightbox ─────────────────────────────────────────────────
+    let resolvedUrls = [];
+    let lbIndex = 0;
+
+    function buildGallery(paths) {
+      resolvedUrls = new Array(paths.length).fill(null);
+      const grid = document.createElement('div');
+      grid.className = 'gallery';
+
+      paths.forEach((path, i) => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item loading';
+        const img = document.createElement('img');
+        img.alt = '';
+        item.appendChild(img);
+        grid.appendChild(item);
+
+        storage.resolveImageUrl(path).then(url => {
+          resolvedUrls[i] = url;
+          img.src = url;
+          img.onload = () => item.classList.remove('loading');
+        });
+
+        item.addEventListener('click', () => openLightbox(i));
+      });
+
+      return grid;
+    }
+
+    function openLightbox(index) {
+      lbIndex = index;
+      showLbImage();
+      document.getElementById('lightbox').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function showLbImage() {
+      const img = document.getElementById('lbImg');
+      img.src = resolvedUrls[lbIndex] ?? '';
+      document.getElementById('lbPrev').style.display = lbIndex > 0 ? '' : 'none';
+      document.getElementById('lbNext').style.display = lbIndex < resolvedUrls.length - 1 ? '' : 'none';
+    }
+
+    document.getElementById('lbClose').addEventListener('click', closeLightbox);
+    document.getElementById('lbPrev').addEventListener('click', () => { lbIndex--; showLbImage(); });
+    document.getElementById('lbNext').addEventListener('click', () => { lbIndex++; showLbImage(); });
+    document.getElementById('lightbox').addEventListener('click', e => {
+      if (e.target === document.getElementById('lightbox')) closeLightbox();
+    });
+    document.addEventListener('keydown', e => {
+      if (!document.getElementById('lightbox').classList.contains('open')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft'  && lbIndex > 0)                    { lbIndex--; showLbImage(); }
+      if (e.key === 'ArrowRight' && lbIndex < resolvedUrls.length - 1) { lbIndex++; showLbImage(); }
+    });
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString('de-DE', {
+        day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin',
+      });
+    }
+    function esc(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    load();
+  </script>
+</body>
+</html>
