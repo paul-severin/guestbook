@@ -22,11 +22,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject token
+      - name: Inject secrets
         env:
           GUESTBOOK_TOKEN: ${{ secrets.GUESTBOOK_TOKEN }}
+          GUESTBOOK_OWNER: ${{ secrets.GUESTBOOK_OWNER }}
+          GUESTBOOK_REPO: ${{ secrets.GUESTBOOK_REPO }}
         run: |
           sed -i "s/YOUR_FINE_GRAINED_TOKEN/${GUESTBOOK_TOKEN}/g" index.html form.html entry.html
+          sed -i "s/GUESTBOOK_OWNER_PLACEHOLDER/${GUESTBOOK_OWNER}/g" index.html form.html entry.html
+          sed -i "s/GUESTBOOK_REPO_PLACEHOLDER/${GUESTBOOK_REPO}/g" index.html form.html entry.html
 
       - uses: actions/configure-pages@v5
 

@@ -129,10 +129,10 @@
       line-height: 1.1;
     }
     .entry-meta {
-      font-size: 12px;
+      font-family: 'Caveat', cursive;
+      font-size: 16px;
       color: var(--text-light);
       margin-top: 6px;
-      letter-spacing: 0.05em;
     }
 
     /* Loading / error */
@@ -180,11 +180,11 @@
   </div>
 
   <script src="storage.js"></script>
-  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN = 'YOUR_FINE_GRAINED_TOKEN'"></script>
+  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN='YOUR_FINE_GRAINED_TOKEN';window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
   <script>
     const storage = new GitHubStorage({
-      owner: 'paul-severin',
-      repo:  'guestbook-data',
+      owner: GUESTBOOK_OWNER,
+      repo:  GUESTBOOK_REPO,
       token: GUESTBOOK_TOKEN,
     });
 
