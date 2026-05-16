@@ -292,3 +292,25 @@ textarea {
   cursor: pointer;
   padding: 0;
 }
+
+/* ── Locked screen (shown when no access token) ── */
+.locked-screen {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 120px 32px 60px;
+  text-align: center;
+}
+.locked-title {
+  font-family: 'Dancing Script', cursive;
+  font-size: 38px;
+  color: var(--green-dark);
+  line-height: 1.1;
+  font-weight: 500;
+}
+.locked-text {
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  color: var(--text-light);
+  margin-top: 16px;
+  line-height: 1.4;
+}

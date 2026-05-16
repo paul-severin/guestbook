@@ -188,13 +188,6 @@
       width: 220px !important;
       height: 220px !important;
     }
-    .qr-modal-url {
-      font-family: 'Lato', sans-serif;
-      font-size: 11px;
-      color: var(--text-light);
-      margin-top: 12px;
-      letter-spacing: 0.03em;
-    }
     .qr-modal-close {
       position: absolute;
       top: 8px; right: 12px;
@@ -216,7 +209,6 @@
     <div class="qr-modal">
       <button class="qr-modal-close" id="qrClose">×</button>
       <div id="qrLarge"></div>
-      <div class="qr-modal-url">paul-severin.github.io/guestbook</div>
     </div>
   </div>
 
@@ -240,9 +232,11 @@
     </div>
   </div>
 
+  <script src="config.local.js" onerror="window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
+  <script src="auth.js"></script>
   <script src="storage.js"></script>
-  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN='YOUR_FINE_GRAINED_TOKEN';window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
   <script>
+    gbRequireToken();
     const storage = new GitHubStorage({
       owner: GUESTBOOK_OWNER,
       repo:  GUESTBOOK_REPO,
@@ -305,10 +299,7 @@
       nameRow.innerHTML = `<span class="entry-name">${esc(entry.name)}</span>
                            <span class="entry-date">${formatDate(entry.createdAt)}</span>`;
 
-      const verbindung = [
-        ...(entry.verbindung || []).filter(v => v !== 'andere'),
-        entry.verbindung_andere,
-      ].filter(Boolean).join(' · ');
+      const verbindung = [entry.verbindung, entry.verbindung_andere].filter(Boolean).join(' · ');
 
       const verbDiv = document.createElement('div');
       verbDiv.className = 'entry-verbindung';
@@ -344,7 +335,7 @@
 
   <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
   <script>
-    const QR_URL = 'https://paul-severin.github.io/guestbook/';
+    const QR_URL = 'https://paul-severin.github.io/guestbook/#token=' + encodeURIComponent(window.GUESTBOOK_TOKEN);
     new QRCode(document.getElementById('qrCorner'), {
       text: QR_URL, width: 56, height: 56, colorDark: '#4a6741', colorLight: '#f7f3ec',
     });

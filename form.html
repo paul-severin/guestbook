@@ -107,9 +107,11 @@
     </div>
   </div>
 
+  <script src="config.local.js" onerror="window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
+  <script src="auth.js"></script>
   <script src="storage.js"></script>
-  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN='YOUR_FINE_GRAINED_TOKEN';window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
   <script>
+    gbRequireToken();
     const storage = new GitHubStorage({
       owner: GUESTBOOK_OWNER,
       repo:  GUESTBOOK_REPO,

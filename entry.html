@@ -179,9 +179,11 @@
     <button class="lightbox-nav next" id="lbNext">›</button>
   </div>
 
+  <script src="config.local.js" onerror="window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
+  <script src="auth.js"></script>
   <script src="storage.js"></script>
-  <script src="config.local.js" onerror="window.GUESTBOOK_TOKEN='YOUR_FINE_GRAINED_TOKEN';window.GUESTBOOK_OWNER='GUESTBOOK_OWNER_PLACEHOLDER';window.GUESTBOOK_REPO='GUESTBOOK_REPO_PLACEHOLDER'"></script>
   <script>
+    gbRequireToken();
     const storage = new GitHubStorage({
       owner: GUESTBOOK_OWNER,
       repo:  GUESTBOOK_REPO,
@@ -221,10 +223,7 @@
       content.appendChild(header);
 
       // Verbindung
-      const verbindung = [
-        ...(entry.verbindung || []).filter(v => v !== 'andere'),
-        entry.verbindung_andere,
-      ].filter(Boolean);
+      const verbindung = [entry.verbindung, entry.verbindung_andere].filter(Boolean);
 
       if (verbindung.length > 0) {
         const card = makeCard();
