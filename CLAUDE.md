@@ -43,10 +43,11 @@ Honeypot hidden field to deter bots
 - **Shared styles:** `style.css` across all three pages
 - **Storage abstraction:** `storage.js` — `GuestbookStorage` base class + `GitHubStorage` implementation. Swap the class to change backend.
 
-## Local Dev Token
-- Token lives in `config.local.js` (gitignored)
-- `index.html`, `form.html`, `entry.html` load it via `<script src="config.local.js" onerror="window.GUESTBOOK_TOKEN='YOUR_FINE_GRAINED_TOKEN'">`
-- Deploy: GitHub Actions secret `GUESTBOOK_TOKEN` injected via `sed` before pushing to Pages
+## Access Token
+- **Production (Pages):** token is NOT baked into the deployed site. Users open the app via a per-share URL with `#token=<github_pat>` in the hash fragment. `auth.js` reads the hash on load, persists the token in `sessionStorage` (per-tab), and strips the hash from the URL bar. Closing the tab clears the token.
+- **Local dev:** `config.local.js` (gitignored) sets `window.GUESTBOOK_TOKEN/OWNER/REPO` directly so the app works without a share-link.
+- **Deploy workflow:** only `GUESTBOOK_OWNER` and `GUESTBOOK_REPO` are `sed`-injected into the HTML. The `GUESTBOOK_TOKEN` GH Actions secret is no longer used by the workflow.
+- **Locked screen:** if no token is present, `gbRequireToken()` (in `auth.js`) replaces the page with a "Zugang erforderlich" message and halts page init.
 
 ---
 

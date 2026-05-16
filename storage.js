@@ -5,7 +5,7 @@
  * {
  *   id:                string,   // e.g. "2026-03-22-anna"
  *   name:              string,
- *   verbindung:        string[], // e.g. ["Freund/in"]
+ *   verbindung:        string,   // e.g. "Freund/in" — empty when "andere" was chosen
  *   verbindung_andere: string,
  *   botschaft:         string,
  *   imagePaths:        string[], // e.g. "images/2026-03-22-anna-1.jpg"
