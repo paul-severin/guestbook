@@ -142,24 +142,22 @@
         if (!file.type.startsWith('image/')) return;
         uploadedFiles.push(file);
         const reader = new FileReader();
-        reader.onload = ev => addPreview(ev.target.result, uploadedFiles.length - 1);
+        reader.onload = ev => addPreview(ev.target.result, file);
         reader.readAsDataURL(file);
       });
     }
 
-    function addPreview(src, idx) {
+    function addPreview(src, file) {
       const wrap = document.createElement('div');
       wrap.className  = 'photo-preview-item';
-      wrap.dataset.idx = idx;
       const img = document.createElement('img');
       img.src = src;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = '×';
       btn.addEventListener('click', () => {
-        uploadedFiles.splice(idx, 1);
+        uploadedFiles = uploadedFiles.filter(f => f !== file);
         wrap.remove();
-        document.querySelectorAll('.photo-preview-item').forEach((el, i) => el.dataset.idx = i);
       });
       wrap.appendChild(img);
       wrap.appendChild(btn);
