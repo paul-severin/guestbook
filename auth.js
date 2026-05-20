@@ -17,6 +17,30 @@
   if (storedToken) window.GUESTBOOK_TOKEN = storedToken;
 })();
 
+// Ownership: localStorage list of entry IDs the user created on this device.
+// Purely a UX gate to surface the edit link — the share-link's GitHub PAT
+// could rewrite anything regardless.
+const GB_OWNED_KEY = 'guestbook_owned_ids';
+
+window.gbOwnedIds = function () {
+  try { return JSON.parse(localStorage.getItem(GB_OWNED_KEY)) ?? []; }
+  catch { return []; }
+};
+window.gbOwns = function (id) {
+  return window.gbOwnedIds().includes(id);
+};
+window.gbMarkOwned = function (id) {
+  const owned = window.gbOwnedIds();
+  if (!owned.includes(id)) {
+    owned.push(id);
+    localStorage.setItem(GB_OWNED_KEY, JSON.stringify(owned));
+  }
+};
+window.gbUnmarkOwned = function (id) {
+  const owned = window.gbOwnedIds().filter(x => x !== id);
+  localStorage.setItem(GB_OWNED_KEY, JSON.stringify(owned));
+};
+
 window.gbRequireToken = function () {
   if (window.GUESTBOOK_TOKEN) return;
   const render = () => {

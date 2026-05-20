@@ -230,6 +230,24 @@ textarea {
 .btn-submit:active { background: var(--green-dark); }
 .btn-submit:disabled { opacity: 0.6; cursor: default; }
 
+.btn-delete {
+  display: block;
+  margin: 22px auto 0;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  font-family: 'Caveat', cursive;
+  font-size: 17px;
+  color: var(--text-light);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+.btn-delete:hover { color: #9a4b3b; text-decoration-color: #9a4b3b; }
+.btn-delete:disabled { opacity: 0.5; cursor: default; }
+
 /* ── Leaf divider ── */
 .leaf-divider { text-align: center; margin: 4px 0 20px; }
 .leaf-divider svg { width: 120px; opacity: 0.45; }

@@ -10,7 +10,7 @@
 <body>
 
   <div class="page">
-    <a href="index.html" class="nav-back">
+    <a href="index.html" class="nav-back" id="navBack">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
@@ -73,7 +73,8 @@
       </div>
 
       <div class="submit-wrap">
-        <button type="submit" class="btn-submit">Eintrag hinterlassen</button>
+        <button type="submit" class="btn-submit" id="submitBtn">Eintrag hinterlassen</button>
+        <button type="button" class="btn-delete" id="deleteBtn" hidden>Eintrag löschen</button>
       </div>
     </form>
 
@@ -95,48 +96,109 @@
       token: GUESTBOOK_TOKEN,
     });
 
+    // Mode: ?id=<id> means edit-existing, otherwise create-new.
+    // Only the original author (tracked in localStorage via gbOwns) sees the edit link;
+    // direct access by URL still redirects non-owners to the read-only view.
+    const editId   = new URLSearchParams(location.search).get('id');
+    const editMode = !!editId;
+
+    const submitBtn = document.getElementById('submitBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const nameField = document.querySelector('input[name="name"]');
+    const botschaftField = document.getElementById('botschaftField');
+
+    if (editMode) {
+      if (!gbOwns(editId)) {
+        window.location.replace(`entry.html?id=${editId}`);
+      } else {
+        document.title = 'Eintrag bearbeiten – Gästebuch';
+        submitBtn.textContent = 'Änderungen speichern';
+        document.getElementById('navBack').href = `entry.html?id=${editId}`;
+        deleteBtn.hidden = false;
+        deleteBtn.addEventListener('click', handleDelete);
+        prefillFromEntry(editId);
+      }
+    }
+
+    async function handleDelete() {
+      if (!confirm('Diesen Eintrag wirklich löschen? Das lässt sich nicht rückgängig machen.')) return;
+      deleteBtn.disabled    = true;
+      submitBtn.disabled    = true;
+      deleteBtn.textContent = 'Wird gelöscht…';
+      try {
+        await storage.deleteEntry(editId);
+        gbUnmarkOwned(editId);
+        window.location.replace('index.html'); // replace so back-button doesn't return to the dead entry
+      } catch (err) {
+        console.error(err);
+        deleteBtn.disabled    = false;
+        submitBtn.disabled    = false;
+        deleteBtn.textContent = 'Eintrag löschen';
+        alert('Löschen fehlgeschlagen. Bitte nochmal versuchen.');
+      }
+    }
+
     // Auto-grow textarea: lines are a CSS background, so any scroll
     // misaligns them with the text. Growing the field avoids the scroll.
-    const botschaftField = document.getElementById('botschaftField');
     const autoGrow = () => {
       botschaftField.style.height = 'auto';
       botschaftField.style.height = botschaftField.scrollHeight + 'px';
     };
     botschaftField.addEventListener('input', autoGrow);
 
-    // Photo upload
-    const photoInput   = document.getElementById('photoInput');
+    // Photo state: keepImagePaths tracks existing server paths we're keeping,
+    // newFiles tracks freshly selected File objects to upload.
+    const photoInput    = document.getElementById('photoInput');
     const photoPreviews = document.getElementById('photoPreviews');
-    const uploadArea   = document.getElementById('uploadArea');
-    let uploadedFiles  = [];
+    const uploadArea    = document.getElementById('uploadArea');
+    let keepImagePaths  = [];
+    let newFiles        = [];
 
     photoInput.addEventListener('change', handleFiles);
 
     function handleFiles(e) {
       Array.from(e.target.files || []).forEach(file => {
         if (!file.type.startsWith('image/')) return;
-        uploadedFiles.push(file);
+        newFiles.push(file);
         const reader = new FileReader();
-        reader.onload = ev => addPreview(ev.target.result, file);
+        reader.onload = ev => addPreview(ev.target.result, () => {
+          newFiles = newFiles.filter(f => f !== file);
+        });
         reader.readAsDataURL(file);
       });
     }
 
-    function addPreview(src, file) {
+    function addPreview(src, removeFn) {
       const wrap = document.createElement('div');
-      wrap.className  = 'photo-preview-item';
+      wrap.className = 'photo-preview-item';
       const img = document.createElement('img');
       img.src = src;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = '×';
-      btn.addEventListener('click', () => {
-        uploadedFiles = uploadedFiles.filter(f => f !== file);
-        wrap.remove();
-      });
+      btn.addEventListener('click', () => { removeFn(); wrap.remove(); });
       wrap.appendChild(img);
       wrap.appendChild(btn);
       photoPreviews.appendChild(wrap);
+    }
+
+    async function prefillFromEntry(id) {
+      try {
+        const entry = await storage.getEntry(id);
+        nameField.value      = entry.name      ?? '';
+        botschaftField.value = entry.botschaft ?? '';
+        autoGrow();
+        keepImagePaths = [...(entry.imagePaths ?? [])];
+        for (const path of entry.imagePaths ?? []) {
+          const url = await storage.resolveImageUrl(path);
+          addPreview(url, () => {
+            keepImagePaths = keepImagePaths.filter(p => p !== path);
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Eintrag konnte nicht geladen werden.');
+      }
     }
 
     uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
@@ -152,9 +214,9 @@
       e.preventDefault();
       if (document.getElementById('hp').value) return;
 
-      const btn = e.target.querySelector('.btn-submit');
-      btn.disabled    = true;
-      btn.textContent = 'Wird gespeichert…';
+      const originalLabel = submitBtn.textContent;
+      submitBtn.disabled    = true;
+      submitBtn.textContent = 'Wird gespeichert…';
 
       const data   = new FormData(e.target);
       const fields = {
@@ -163,12 +225,18 @@
       };
 
       try {
-        const id = await storage.saveEntry(fields, uploadedFiles);
-        window.location.href = `entry.html?id=${id}`;
+        if (editMode) {
+          await storage.updateEntry(editId, fields, keepImagePaths, newFiles);
+          window.location.href = `entry.html?id=${editId}`;
+        } else {
+          const id = await storage.saveEntry(fields, newFiles);
+          gbMarkOwned(id);
+          window.location.href = `entry.html?id=${id}`;
+        }
       } catch (err) {
         console.error(err);
-        btn.disabled    = false;
-        btn.textContent = 'Eintrag hinterlassen';
+        submitBtn.disabled    = false;
+        submitBtn.textContent = originalLabel;
         alert('Speichern fehlgeschlagen. Bitte nochmal versuchen.');
       }
     });
