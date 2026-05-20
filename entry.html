@@ -110,6 +110,25 @@
       margin-top: 6px;
     }
 
+    /* ── Edit link (only shown to the original author) ── */
+    .edit-link-wrap {
+      text-align: center;
+      margin: 4px 0 24px;
+    }
+    .edit-link {
+      font-family: 'Caveat', cursive;
+      font-size: 18px;
+      color: var(--green-dark);
+      text-decoration: none;
+      border-bottom: 1px solid var(--gold-light);
+      padding-bottom: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .edit-link:hover {
+      color: var(--green);
+      border-color: var(--green);
+    }
+
     /* Loading / error */
     .state-loading, .state-error {
       text-align: center;
@@ -196,6 +215,14 @@
         <h1 class="entry-name-large">${esc(entry.name)}</h1>
       `;
       content.appendChild(header);
+
+      // Edit link — only the original author sees this (tracked client-side).
+      if (gbOwns(entry.id)) {
+        const editWrap = document.createElement('div');
+        editWrap.className = 'edit-link-wrap';
+        editWrap.innerHTML = `<a class="edit-link" href="form.html?id=${encodeURIComponent(entry.id)}">Bearbeiten</a>`;
+        content.appendChild(editWrap);
+      }
 
       // Botschaft
       if (entry.botschaft) {

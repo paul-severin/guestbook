@@ -8,18 +8,22 @@
  *   botschaft:  string,
  *   imagePaths: string[], // e.g. "images/2026-03-22-anna-1.jpg"
  *   createdAt:  string,   // ISO 8601
+ *   updatedAt?: string,   // ISO 8601, set on edits
  * }
  *
- * listEntries()              → [{ id, createdAt }]   — lightweight, for list views
- * getEntry(id)               → full entry object     — fetch on demand
- * saveEntry(fields, files[]) → id                    — persist new entry + images
- * resolveImageUrl(path)      → Promise<string>       — usable <img src> URL
+ * listEntries()                                   → [{ id, createdAt }]
+ * getEntry(id)                                    → full entry object
+ * saveEntry(fields, files[])                      → id, persists new entry
+ * updateEntry(id, fields, keepImagePaths, newFiles) → updated entry, edits in place
+ * resolveImageUrl(path)                           → Promise<string> for <img src>
  */
 class GuestbookStorage {
-  async listEntries()                 { throw new Error('Not implemented'); }
-  async getEntry(id)                  { throw new Error('Not implemented'); }
-  async saveEntry(fields, imageFiles) { throw new Error('Not implemented'); }
-  async resolveImageUrl(path)         { throw new Error('Not implemented'); }
+  async listEntries()                                       { throw new Error('Not implemented'); }
+  async getEntry(id)                                        { throw new Error('Not implemented'); }
+  async saveEntry(fields, imageFiles)                       { throw new Error('Not implemented'); }
+  async updateEntry(id, fields, keepImagePaths, newFiles)   { throw new Error('Not implemented'); }
+  async deleteEntry(id)                                     { throw new Error('Not implemented'); }
+  async resolveImageUrl(path)                               { throw new Error('Not implemented'); }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,7 +50,10 @@ class GitHubStorage extends GuestbookStorage {
 
   /** Returns [{ id, createdAt }] sorted newest-first. */
   async listEntries() {
-    const files = await this.#apiCall('GET', 'entries').catch(err => {
+    // Cache-bust the listing — the freshness-sensitive call. Individual
+    // entry/image fetches keep their normal cache behavior (with no-cache
+    // revalidation in #apiCall).
+    const files = await this.#apiCall('GET', `entries?t=${Date.now()}`).catch(err => {
       if (err.message.includes('404')) return []; // entries/ doesn't exist yet
       throw err;
     });
@@ -58,11 +65,8 @@ class GitHubStorage extends GuestbookStorage {
 
   /** Returns the full entry object for a given id. */
   async getEntry(id) {
-    const file   = await this.#apiCall('GET', `entries/${id}.json`);
-    const binary = atob(file.content.replace(/\n/g, ''));
-    const bytes  = Uint8Array.from(binary, c => c.charCodeAt(0));
-    const text   = new TextDecoder('utf-8').decode(bytes);
-    return JSON.parse(text);
+    const file = await this.#apiCall('GET', `entries/${id}.json`);
+    return JSON.parse(this.#decodeBase64Utf8(file.content));
   }
 
   /**
@@ -89,6 +93,62 @@ class GitHubStorage extends GuestbookStorage {
     );
 
     return id;
+  }
+
+  /**
+   * Updates an existing entry: replaces text fields, removes images not in
+   * keepImagePaths, uploads new ones, and writes the entry JSON back.
+   * Image indexes always increment from the previous max to avoid stale-cache
+   * collisions with deleted-then-re-added slots.
+   *
+   * @param {string} id
+   * @param {{ name, botschaft }} fields
+   * @param {string[]} keepImagePaths  subset of the entry's current imagePaths
+   * @param {File[]}   newImageFiles
+   */
+  async updateEntry(id, fields, keepImagePaths = [], newImageFiles = []) {
+    const entryPath = `entries/${id}.json`;
+    const existingFile = await this.#apiCall('GET', entryPath);
+    const current = JSON.parse(this.#decodeBase64Utf8(existingFile.content));
+
+    const removed = current.imagePaths.filter(p => !keepImagePaths.includes(p));
+    for (const path of removed) {
+      await this.#deleteFile(path, `Remove image from ${id}`);
+    }
+
+    const nextIndex = this.#nextImageIndex(current.imagePaths);
+    const newPaths = [];
+    for (let i = 0; i < newImageFiles.length; i++) {
+      newPaths.push(await this.#uploadImage(newImageFiles[i], id, nextIndex + i));
+    }
+
+    const updated = {
+      ...current,
+      ...fields,
+      imagePaths: [...keepImagePaths, ...newPaths],
+      updatedAt: new Date().toISOString(),
+    };
+    await this.#putFile(entryPath, JSON.stringify(updated, null, 2),
+      `Update guestbook entry: ${fields.name}`, existingFile.sha);
+
+    return updated;
+  }
+
+  /** Deletes an entry and all its images. Tolerant of already-missing images. */
+  async deleteEntry(id) {
+    const entryPath = `entries/${id}.json`;
+    const file      = await this.#apiCall('GET', entryPath);
+    const current   = JSON.parse(this.#decodeBase64Utf8(file.content));
+
+    for (const path of current.imagePaths ?? []) {
+      await this.#deleteFile(path, `Remove image from deleted entry ${id}`)
+        .catch(err => console.warn(`Could not delete ${path}:`, err));
+    }
+
+    await this.#apiCall('DELETE', entryPath, {
+      message: `Delete guestbook entry: ${current.name}`,
+      sha:     file.sha,
+    });
   }
 
   /**
@@ -149,19 +209,40 @@ class GitHubStorage extends GuestbookStorage {
     });
   }
 
-  async #putFile(path, text, message) {
+  async #putFile(path, text, message, sha = null) {
     const content = btoa(unescape(encodeURIComponent(text))); // UTF-8 safe
-    await this.#apiCall('PUT', path, { message, content });
+    const body = sha ? { message, content, sha } : { message, content };
+    await this.#apiCall('PUT', path, body);
   }
 
   async #putFileBinary(path, base64Content, message) {
     await this.#apiCall('PUT', path, { message, content: base64Content });
   }
 
+  async #deleteFile(path, message) {
+    const file = await this.#apiCall('GET', path);
+    await this.#apiCall('DELETE', path, { message, sha: file.sha });
+  }
+
+  #decodeBase64Utf8(b64) {
+    const binary = atob(b64.replace(/\n/g, ''));
+    const bytes  = Uint8Array.from(binary, c => c.charCodeAt(0));
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  #nextImageIndex(imagePaths) {
+    const max = imagePaths.reduce((m, p) => {
+      const match = p.match(/-(\d+)\.jpg$/);
+      return match ? Math.max(m, parseInt(match[1], 10)) : m;
+    }, 0);
+    return max + 1;
+  }
+
   async #apiCall(method, path, body = null) {
     const url = `https://api.github.com/repos/${this.#owner}/${this.#repo}/contents/${path}`;
     const res = await fetch(url, {
       method,
+      cache: 'no-cache', // revalidate with GitHub via ETag instead of trusting the 60s max-age
       headers: {
         Authorization: `Bearer ${this.#token}`,
         Accept:        'application/vnd.github+json',
