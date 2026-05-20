@@ -115,6 +115,7 @@ input[type="email"] {
   font-weight: 400;
   font-size: 18px;
   color: var(--text);
+  caret-color: var(--green-dark);
   outline: none;
   transition: border-color 0.2s;
   -webkit-appearance: none;
@@ -128,6 +129,7 @@ textarea {
   background: transparent;
   border: none;
   resize: none;
+  overflow: hidden;
   line-height: 1.9;
   background-image: repeating-linear-gradient(
     transparent,
@@ -141,6 +143,7 @@ textarea {
   font-weight: 400;
   font-size: 18px;
   color: var(--text);
+  caret-color: var(--green-dark);
   outline: none;
   -webkit-appearance: none;
   border-radius: 0;
