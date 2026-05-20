@@ -7,31 +7,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Lato:wght@300;400&family=Caveat:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* ── Read-only field values ── */
-    .field-value {
-      padding: 6px 2px 8px;
-      font-size: 15px;
-      color: var(--text);
-      border-bottom: 1px solid var(--line);
-      min-height: 36px;
-    }
-
-    /* ── Verbindung badges ── */
-    .badge-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 4px;
-    }
-    .badge {
-      font-size: 12px;
-      color: var(--green-dark);
-      border: 1px solid var(--green);
-      border-radius: 20px;
-      padding: 3px 10px;
-      font-weight: 400;
-    }
-
     /* ── Botschaft (read-only textarea look) ── */
     .botschaft-text {
       font-family: 'Caveat', cursive;
@@ -221,15 +196,6 @@
         <h1 class="entry-name-large">${esc(entry.name)}</h1>
       `;
       content.appendChild(header);
-
-      // Verbindung
-      const verbindung = [entry.verbindung, entry.verbindung_andere].filter(Boolean);
-
-      if (verbindung.length > 0) {
-        const card = makeCard();
-        card.innerHTML = `<div class="badge-list">${verbindung.map(v => `<span class="badge">${esc(v)}</span>`).join('')}</div>`;
-        content.appendChild(card);
-      }
 
       // Botschaft
       if (entry.botschaft) {

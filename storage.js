@@ -3,13 +3,11 @@
  *
  * Entry shape:
  * {
- *   id:                string,   // e.g. "2026-03-22-anna"
- *   name:              string,
- *   verbindung:        string,   // e.g. "Freund/in" — empty when "andere" was chosen
- *   verbindung_andere: string,
- *   botschaft:         string,
- *   imagePaths:        string[], // e.g. "images/2026-03-22-anna-1.jpg"
- *   createdAt:         string,   // ISO 8601
+ *   id:         string,   // e.g. "2026-03-22-anna"
+ *   name:       string,
+ *   botschaft:  string,
+ *   imagePaths: string[], // e.g. "images/2026-03-22-anna-1.jpg"
+ *   createdAt:  string,   // ISO 8601
  * }
  *
  * listEntries()              → [{ id, createdAt }]   — lightweight, for list views
@@ -60,13 +58,16 @@ class GitHubStorage extends GuestbookStorage {
 
   /** Returns the full entry object for a given id. */
   async getEntry(id) {
-    const file = await this.#apiCall('GET', `entries/${id}.json`);
-    return JSON.parse(atob(file.content.replace(/\n/g, '')));
+    const file   = await this.#apiCall('GET', `entries/${id}.json`);
+    const binary = atob(file.content.replace(/\n/g, ''));
+    const bytes  = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const text   = new TextDecoder('utf-8').decode(bytes);
+    return JSON.parse(text);
   }
 
   /**
    * Compresses images, uploads everything, returns the new entry id.
-   * @param {{ name, verbindung, verbindung_andere, botschaft }} fields
+   * @param {{ name, botschaft }} fields
    * @param {File[]} imageFiles
    */
   async saveEntry(fields, imageFiles = []) {

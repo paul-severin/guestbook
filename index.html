@@ -103,12 +103,6 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .entry-verbindung {
-      font-size: 11px;
-      color: var(--text-light);
-      letter-spacing: 0.05em;
-      margin-bottom: 6px;
-    }
     .entry-snippet {
       font-family: 'Caveat', cursive;
       font-size: 16px;
@@ -152,18 +146,19 @@
       right: 18px;
       cursor: pointer;
       z-index: 10;
+      border: 1px solid var(--border);
+      padding: 6px;
+      background: var(--cream);
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      line-height: 0;
     }
+    .qr-corner:hover { opacity: 1; }
     .qr-corner canvas, .qr-corner img {
       display: block;
       width: 56px !important;
       height: 56px !important;
-      border: 1px solid var(--border);
-      padding: 4px;
-      background: var(--cream);
-      opacity: 0.7;
-      transition: opacity 0.2s;
     }
-    .qr-corner:hover canvas, .qr-corner:hover img { opacity: 1; }
 
     .qr-modal-backdrop {
       display: none;
@@ -299,14 +294,7 @@
       nameRow.innerHTML = `<span class="entry-name">${esc(entry.name)}</span>
                            <span class="entry-date">${formatDate(entry.createdAt)}</span>`;
 
-      const verbindung = [entry.verbindung, entry.verbindung_andere].filter(Boolean).join(' · ');
-
-      const verbDiv = document.createElement('div');
-      verbDiv.className = 'entry-verbindung';
-      verbDiv.textContent = verbindung;
-
       info.appendChild(nameRow);
-      info.appendChild(verbDiv);
 
       if (entry.botschaft) {
         const snippet = document.createElement('p');

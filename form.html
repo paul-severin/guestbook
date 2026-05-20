@@ -33,35 +33,12 @@
 
         <label class="field-label">Mein Name</label>
         <input type="text" name="name" placeholder="Vor- und Nachname" autocomplete="name" required />
-
-        <label class="field-label" style="margin-top:22px;">Woher kennen wir uns?</label>
-        <div class="check-group">
-          <label class="check-item">
-            <input type="radio" name="verbindung" value="Freund/in" />
-            <span class="check-box"></span>
-            <span>Freund/in</span>
-          </label>
-          <label class="check-item">
-            <input type="radio" name="verbindung" value="Familie" />
-            <span class="check-box"></span>
-            <span>Familie</span>
-          </label>
-        </div>
-        <div class="check-group" style="margin-top:10px;">
-          <label class="check-item">
-            <input type="radio" name="verbindung" value="andere" id="andereCheck" />
-            <span class="check-box"></span>
-            <span>Andere:</span>
-          </label>
-          <input type="text" name="verbindung_andere" id="andereText" placeholder="Und zwar…"
-                 style="font-style:italic; flex:1;" disabled />
-        </div>
       </div>
 
       <!-- Section 2: Message -->
       <div class="card">
         <h2 class="section-title">Persönliche Botschaft</h2>
-        <textarea name="botschaft" rows="7"></textarea>
+        <textarea name="botschaft" rows="7" id="botschaftField"></textarea>
       </div>
 
       <!-- Section 3: Photos -->
@@ -118,16 +95,14 @@
       token: GUESTBOOK_TOKEN,
     });
 
-    // Andere toggle
-    const andereCheck = document.getElementById('andereCheck');
-    const andereText  = document.getElementById('andereText');
-    document.querySelectorAll('input[name="verbindung"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        andereText.disabled = !andereCheck.checked;
-        if (!andereCheck.checked) andereText.value = '';
-        if (andereCheck.checked) andereText.focus();
-      });
-    });
+    // Auto-grow textarea: lines are a CSS background, so any scroll
+    // misaligns them with the text. Growing the field avoids the scroll.
+    const botschaftField = document.getElementById('botschaftField');
+    const autoGrow = () => {
+      botschaftField.style.height = 'auto';
+      botschaftField.style.height = botschaftField.scrollHeight + 'px';
+    };
+    botschaftField.addEventListener('input', autoGrow);
 
     // Photo upload
     const photoInput   = document.getElementById('photoInput');
@@ -181,13 +156,10 @@
       btn.disabled    = true;
       btn.textContent = 'Wird gespeichert…';
 
-      const data       = new FormData(e.target);
-      const verbindung = data.get('verbindung') ?? '';
-      const fields     = {
-        name:              data.get('name')?.trim() ?? '',
-        verbindung:        verbindung === 'andere' ? '' : verbindung,
-        verbindung_andere: data.get('verbindung_andere')?.trim() ?? '',
-        botschaft:         data.get('botschaft')?.trim() ?? '',
+      const data   = new FormData(e.target);
+      const fields = {
+        name:      data.get('name')?.trim() ?? '',
+        botschaft: data.get('botschaft')?.trim() ?? '',
       };
 
       try {
