@@ -2,20 +2,43 @@
 // Load order: config.local.js (optional, local dev) → auth.js → storage.js → inline page script.
 // Inline scripts must call gbRequireToken() before initializing GitHubStorage.
 
+// Admin: visit any page with ?admin once to permanently mark this browser as
+// admin (localStorage). UI unlock only — the share-link's PAT is the real
+// security boundary, so a hardcoded key would add no protection.
+const GB_ADMIN_FLAG_KEY = 'guestbook_admin';
+
 (function () {
-  const STORAGE_KEY = 'guestbook_token';
+  const TOKEN_KEY = 'guestbook_token';
 
+  // Token comes in via URL hash (#token=…), per-tab in sessionStorage.
   const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
-  const urlToken = hashParams.get('token');
+  const urlToken   = hashParams.get('token');
+  if (urlToken) sessionStorage.setItem(TOKEN_KEY, urlToken);
 
-  if (urlToken) {
-    sessionStorage.setItem(STORAGE_KEY, urlToken);
-    history.replaceState(null, '', location.pathname + location.search);
+  // Admin unlock comes in via query (?admin), permanent in localStorage.
+  const queryParams = new URLSearchParams(location.search);
+  const hadAdmin    = queryParams.has('admin');
+  if (hadAdmin) {
+    localStorage.setItem(GB_ADMIN_FLAG_KEY, '1');
+    queryParams.delete('admin');
   }
 
-  const storedToken = sessionStorage.getItem(STORAGE_KEY);
+  // Clean up the URL bar if we consumed anything.
+  if (urlToken || hadAdmin) {
+    const newSearch = queryParams.toString();
+    history.replaceState(null, '', location.pathname + (newSearch ? '?' + newSearch : ''));
+  }
+
+  const storedToken = sessionStorage.getItem(TOKEN_KEY);
   if (storedToken) window.GUESTBOOK_TOKEN = storedToken;
 })();
+
+window.gbIsAdmin = function () {
+  return localStorage.getItem(GB_ADMIN_FLAG_KEY) === '1';
+};
+window.gbCanEdit = function (id) {
+  return window.gbOwns(id) || window.gbIsAdmin();
+};
 
 // Ownership: localStorage list of entry IDs the user created on this device.
 // Purely a UX gate to surface the edit link — the share-link's GitHub PAT

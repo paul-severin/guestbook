@@ -216,8 +216,8 @@
       `;
       content.appendChild(header);
 
-      // Edit link — only the original author sees this (tracked client-side).
-      if (gbOwns(entry.id)) {
+      // Edit link — original author (localStorage) or admin (?admin=…).
+      if (gbCanEdit(entry.id)) {
         const editWrap = document.createElement('div');
         editWrap.className = 'edit-link-wrap';
         editWrap.innerHTML = `<a class="edit-link" href="form.html?id=${encodeURIComponent(entry.id)}">Bearbeiten</a>`;

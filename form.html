@@ -97,8 +97,8 @@
     });
 
     // Mode: ?id=<id> means edit-existing, otherwise create-new.
-    // Only the original author (tracked in localStorage via gbOwns) sees the edit link;
-    // direct access by URL still redirects non-owners to the read-only view.
+    // Edit access: original author (gbOwns) or admin (gbIsAdmin via ?admin=…).
+    // Non-eligible visitors are bounced to the read-only entry view.
     const editId   = new URLSearchParams(location.search).get('id');
     const editMode = !!editId;
 
@@ -108,7 +108,7 @@
     const botschaftField = document.getElementById('botschaftField');
 
     if (editMode) {
-      if (!gbOwns(editId)) {
+      if (!gbCanEdit(editId)) {
         window.location.replace(`entry.html?id=${editId}`);
       } else {
         document.title = 'Eintrag bearbeiten – Gästebuch';
