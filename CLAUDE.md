@@ -35,6 +35,21 @@ Dedicated repo: `guestbook-data`
 ### Spam Protection
 Honeypot hidden field to deter bots
 
+### Edit & Delete (owner-only UX gate)
+- After a successful `saveEntry`, the new entry's id is stored in `localStorage.guestbook_owned_ids`. `auth.js` exposes `gbOwns(id)`, `gbMarkOwned(id)`, `gbUnmarkOwned(id)`, plus `gbCanEdit(id) = gbOwns(id) || gbIsAdmin()`.
+- `entry.html` shows a subtle "Bearbeiten" link when `gbCanEdit(entry.id)`.
+- `form.html?id=<id>` is the edit screen — it reuses the create form, pre-fills name/Botschaft/photos, and branches submit to `storage.updateEntry`. Non-eligible visitors are redirected to the read-only `entry.html?id=<id>`.
+- Edit screen also shows "Eintrag löschen" → `storage.deleteEntry(id)` (deletes JSON + all images, tolerant of already-missing files), then `gbUnmarkOwned(id)` and `location.replace('index.html')` so the back button skips the dead entry.
+- **Trust model:** this is a UI gate, not real auth. Anyone with the share-link has the PAT and can edit/delete anything via the API directly. Acceptable for a wedding guestbook.
+
+### Admin unlock
+Visit any page once with `?admin` (no value) to permanently mark the browser as admin (`localStorage.guestbook_admin = '1'`). The query param is consumed and stripped from the URL bar. Admins see edit/delete affordances on every entry. To revoke: clear the localStorage key in DevTools.
+
+### Storage update mechanics
+- `updateEntry(id, fields, keepImagePaths, newFiles)`: deletes removed images sequentially, uploads new ones starting from `max(existing index) + 1` to avoid stale-cache collisions on re-added slots, then PUTs the JSON back with the previous SHA. Adds `updatedAt`.
+- `deleteEntry(id)`: fetches entry to learn its imagePaths, deletes each (tolerant of 404), then DELETEs the JSON with its SHA.
+- All API calls use `cache: 'no-cache'` (revalidate via ETag); `listEntries` additionally appends `?t=<now>` to defeat any intermediate cache.
+
 ---
 
 ## Tech Stack
