@@ -267,8 +267,12 @@
 
         storage.resolveImageUrl(path).then(url => {
           resolvedUrls[i] = url;
+          img.onload  = () => item.classList.remove('loading');
+          img.onerror = () => item.classList.remove('loading');
           img.src = url;
-          img.onload = () => item.classList.remove('loading');
+        }).catch(err => {
+          console.error('Failed to load image', path, err);
+          item.classList.remove('loading');
         });
 
         item.addEventListener('click', () => openLightbox(i));
