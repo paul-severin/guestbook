@@ -1,4 +1,4 @@
-// Guestbook auth — token arrives via URL hash, persists in sessionStorage for the tab.
+// Guestbook auth — token arrives via URL hash, persists in a long-lived cookie.
 // Load order: config.local.js (optional, local dev) → auth.js → storage.js → inline page script.
 // Inline scripts must call gbRequireToken() before initializing GitHubStorage.
 
@@ -8,12 +8,28 @@
 const GB_ADMIN_FLAG_KEY = 'guestbook_admin';
 
 (function () {
-  const TOKEN_KEY = 'guestbook_token';
+  const TOKEN_COOKIE = 'guestbook_token';
+  // Browsers cap cookie lifetime (Chrome/Firefox ≈ 400 days; Safari ITP ≈ 7
+  // days for JS-set cookies). We ask for the max and let the browser clamp.
+  const FAR_FUTURE = 'Fri, 31 Dec 9999 23:59:59 GMT';
 
-  // Token comes in via URL hash (#token=…), per-tab in sessionStorage.
+  function readCookie(name) {
+    const match = document.cookie.split('; ').find(c => c.startsWith(name + '='));
+    return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+  }
+  function writeCookie(name, value) {
+    // Secure only on https — keeps local file:// / http dev usable.
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie =
+      name + '=' + encodeURIComponent(value) +
+      '; Expires=' + FAR_FUTURE +
+      '; Path=/; SameSite=Strict' + secure;
+  }
+
+  // Token comes in via URL hash (#token=…); cookie keeps it across tabs/restarts.
   const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
   const urlToken   = hashParams.get('token');
-  if (urlToken) sessionStorage.setItem(TOKEN_KEY, urlToken);
+  if (urlToken) writeCookie(TOKEN_COOKIE, urlToken);
 
   // Admin unlock comes in via query (?admin), permanent in localStorage.
   const queryParams = new URLSearchParams(location.search);
@@ -29,7 +45,7 @@ const GB_ADMIN_FLAG_KEY = 'guestbook_admin';
     history.replaceState(null, '', location.pathname + (newSearch ? '?' + newSearch : ''));
   }
 
-  const storedToken = sessionStorage.getItem(TOKEN_KEY);
+  const storedToken = readCookie(TOKEN_COOKIE);
   if (storedToken) window.GUESTBOOK_TOKEN = storedToken;
 })();
 

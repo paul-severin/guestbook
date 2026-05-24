@@ -59,7 +59,7 @@ Visit any page once with `?admin` (no value) to permanently mark the browser as 
 - **Storage abstraction:** `storage.js` — `GuestbookStorage` base class + `GitHubStorage` implementation. Swap the class to change backend.
 
 ## Access Token
-- **Production (Pages):** token is NOT baked into the deployed site. Users open the app via a per-share URL with `#token=<github_pat>` in the hash fragment. `auth.js` reads the hash on load, persists the token in `sessionStorage` (per-tab), and strips the hash from the URL bar. Closing the tab clears the token.
+- **Production (Pages):** token is NOT baked into the deployed site. Users open the app via a per-share URL with `#token=<github_pat>` in the hash fragment. `auth.js` reads the hash on load, persists the token in a long-lived cookie (`guestbook_token`, `Expires=9999`, `SameSite=Strict`, `Secure` on https), and strips the hash from the URL bar. The cookie survives tab close / browser restart; browsers clamp the lifetime (Chrome/Firefox ≈ 400 days, Safari ITP ≈ 7 days for JS-set cookies).
 - **Local dev:** `config.local.js` (gitignored) sets `window.GUESTBOOK_TOKEN/OWNER/REPO` directly so the app works without a share-link.
 - **Deploy workflow:** only `GUESTBOOK_OWNER` and `GUESTBOOK_REPO` are `sed`-injected into the HTML. The `GUESTBOOK_TOKEN` GH Actions secret is no longer used by the workflow.
 - **Locked screen:** if no token is present, `gbRequireToken()` (in `auth.js`) replaces the page with a "Zugang erforderlich" message and halts page init.
